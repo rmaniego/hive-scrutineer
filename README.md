@@ -1,2 +1,2 @@
-# hive-scrutineer
-Traditional and AI performance and quality analytics on Hive Posts
+# scrutineer
+Performance and quality analytics on Hive Posts.
