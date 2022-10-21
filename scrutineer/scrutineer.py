@@ -10,6 +10,7 @@
 """
 
 import re
+from .constants import ENGLISH_STOP_WORDS
 from nektar import Waggle
 
 class Scrutineer:
@@ -36,15 +37,15 @@ class Scrutineer:
                 return {}
 
         self.analysis["title"] = _analyze_title(post["title"])
-        
         if self.analysis["title"]["score"] < (self._minimum_score/100):
+            print(self.analysis["title"]["score"])
             return {}
 
         body = post["body"]
         if self._deep:
             unique_lines = []
             raw_body = body.split("\n")
-            blogs = Waggle(author).blogs(author, limit=3)
+            blogs = Waggle(author).blogs(author, limit=2)
             for blog in blogs:
                 if blog["permlink"] == permlink:
                     continue
@@ -52,11 +53,17 @@ class Scrutineer:
                 for line in raw_body:
                     if line not in raw_blog_body:
                         unique_lines.append(line)
-                break
             body = "\n".join(unique_lines)
 
         cleaned, stripped = _parse_body(body)
         self.analysis["body"] = _analyze_body(cleaned, stripped)
+        
+        if self._deep:
+            keywords = self.analysis["body"]["seo_keywords"]
+            self.analysis["title"] = _analyze_title(post["title"], keywords)
+            if self.analysis["title"]["score"] < (self._minimum_score/100):
+                print(self.analysis["title"]["score"])
+                return {}
 
         word_count = self.analysis["body"]["stripped"]
         self.analysis["images"] = _analyze_images(body, word_count)
@@ -78,15 +85,23 @@ class Scrutineer:
         self.analysis["total_score"] = score
         return self.analysis
 
-def _analyze_title(title):
+def _analyze_title(title, keywords={}):
     analysis = {}
     length = len(title.encode("utf-8"))
     analysis["below_min"] = length < 30
     analysis["above_max"] = length > 60
+
+    analysis["seo_keywords"] = 0
     analysis["readability"] = len(re.sub(r"[^\w\'\,\-\ ]+", "", title)) / length
+    if not keywords:
+        analysis["seo_keywords"] = analysis["readability"]
+    for keyword in keywords.keys():
+        analysis["seo_keywords"] = 1
+        break
+
     analysis["score"] = (
         int(not (analysis["below_min"] or analysis["above_max"]))
-        * analysis["readability"]
+        * ((analysis["readability"] + analysis["seo_keywords"]) / 2)
     )
     return analysis
 
@@ -145,6 +160,7 @@ def _analyze_body(cleaned, stripped):
     analysis = {}
     analysis["cleaned"] = len(cleaned.split(" "))
     analysis["stripped"] = len(stripped.split(" "))
+    analysis["seo_keywords"] = _get_bigrams(stripped)
 
     analysis["above_499"] = analysis["stripped"] > 499
     analysis["above_999"] = analysis["stripped"] > 999
@@ -152,6 +168,23 @@ def _analyze_body(cleaned, stripped):
     analysis["score"] = ((analysis["stripped"] / analysis["cleaned"]) + analysis["above_499"] + analysis["above_999"]) / 3
     return analysis
 
+def _get_bigrams(contents, occurrence=4, limit=5):
+    occurrence = int(occurrence)
+    limit = int(limit)
+    
+    bigrams = {}
+    words = list(re.findall(r"\b\w\w+\b", contents.lower()))
+    words = [x for x in words if x not in ENGLISH_STOP_WORDS]
+    for i in range(len(words)-2):
+        bigram = " ".join(words[i:i+2])
+        bigrams[bigram] = bigrams.get(bigram, 0) + 1
+
+    keywords = []
+    for b, o in bigrams.items():
+        if o >= occurrence:
+            keywords.append([b, o])
+    keywords = list(reversed(sorted(keywords)))[:limit]
+    return { b:o for b, o in keywords }
 
 def _analyze_images(body, word_count):
     analysis = {}
