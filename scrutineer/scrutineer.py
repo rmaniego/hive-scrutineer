@@ -10,21 +10,30 @@
 """
 
 import re
-from .constants import ENGLISH_STOP_WORDS
+from .constants import ENGLISH_STOP_WORDS, ENGLISH_10K_WORDS
 from nektar import Waggle
 
+
 class Scrutineer:
-    def __init__(self, minimum_score=80, max_user_tagging=5, max_tags=5, retries=1, deep=False):
+    def __init__(
+        self, minimum_score=80, max_user_tags=5, max_tags=5, retries=1, deep=False
+    ):
         self._weights = [1, 1, 1, 1, 1]
         self._minimum_score = float(minimum_score)
-        self._max_user_tagging = int(max_user_tagging)
+        self._max_user_tags = int(max_user_tags)
         self._max_tags = int(max_tags)
         self._retries = int(retries)
         self._deep = isinstance(deep, bool) * bool(deep)
         self.analysis = {}
 
     def set_weights(self, title, body, images, tagging, tags):
-        self._weights = [float(title), float(body), float(images), float(tagging), float(tags)]
+        self._weights = [
+            float(title),
+            float(body),
+            float(images),
+            float(tagging),
+            float(tags),
+        ]
 
     def analyze(self, post, permlink=None, skip_bad_title=True):
         author = post
@@ -37,7 +46,7 @@ class Scrutineer:
                 return {}
 
         self.analysis["title"] = _analyze_title(post["title"])
-        if self.analysis["title"]["score"] < (self._minimum_score/100):
+        if self.analysis["title"]["readability"] < (self._minimum_score / 100):
             return {}
 
         body = post["body"]
@@ -52,25 +61,24 @@ class Scrutineer:
                 for line in raw_body:
                     if line not in raw_blog_body:
                         unique_lines.append(line)
+                break
             body = "\n".join(unique_lines)
 
         cleaned, stripped = _parse_body(body)
         self.analysis["body"] = _analyze_body(cleaned, stripped)
-        
+
         if self._deep:
             keywords = self.analysis["body"]["seo_keywords"]
             self.analysis["title"] = _analyze_title(post["title"], keywords)
-            if self.analysis["title"]["score"] < (self._minimum_score/100):
-                return {}
 
         word_count = self.analysis["body"]["stripped"]
         self.analysis["images"] = _analyze_images(body, word_count)
 
-        self.analysis["tagging"] = _analyze_overtagging(stripped, self._max_user_tagging)
-        
+        self.analysis["tagging"] = _analyze_overtagging(stripped, self._max_user_tags)
+
         tags = post["json_metadata"]["tags"]
         self.analysis["tags"] = _analyze_tags(tags, self._max_tags)
-        
+
         score = 0
         score += self.analysis["title"]["score"] * self._weights[0]
         score += self.analysis["body"]["score"] * self._weights[1]
@@ -78,12 +86,13 @@ class Scrutineer:
         score += self.analysis["tagging"]["score"] * self._weights[3]
         score += self.analysis["tags"]["score"] * self._weights[4]
         score /= sum(self._weights)
-        
+
         self.analysis["deep"] = self._deep
-        self.analysis["total_score"] = score
+        self.analysis["score"] = score
         return self.analysis
 
-def _analyze_title(title, keywords={}):
+
+def _analyze_title(title, keywords=None):
     analysis = {}
     length = len(title.encode("utf-8"))
     analysis["below_min"] = length < 30
@@ -91,41 +100,25 @@ def _analyze_title(title, keywords={}):
 
     analysis["seo_keywords"] = 0
     analysis["readability"] = len(re.sub(r"[^\w\'\,\-\ ]+", "", title)) / length
-    if not keywords:
+    if isinstance(keywords, dict):
+        for keyword in keywords.keys():
+            if keyword in title.lower():
+                analysis["seo_keywords"] = 1
+                break
+    else:
         analysis["seo_keywords"] = analysis["readability"]
-    for keyword in keywords.keys():
-        analysis["seo_keywords"] = 1
-        break
 
-    analysis["score"] = (
-        int(not (analysis["below_min"] or analysis["above_max"]))
-        * ((analysis["readability"] + analysis["seo_keywords"]) / 2)
+    analysis["score"] = int(not (analysis["below_min"] or analysis["above_max"])) * (
+        ((analysis["readability"] * 2) + analysis["seo_keywords"]) / 3
     )
-    return analysis
-
-def _analyze_tags(tags, max_tags):
-    analysis = {}
-    analysis["max_tags"] = max_tags
-    analysis["count"] = len(tags)
-    analysis["score"] = 1
-    if analysis["count"] > max_tags:
-        analysis["score"] = 1 / analysis["count"]
-    return analysis
-
-def _analyze_overtagging(body, max_user_tagging):
-    analysis = {}
-    tags = len(re.findall(r"[\ ]?@[a-z0-9\-\.]{3,16}[\ ]?", body))
-    analysis["max_user_tagging"] = max_user_tagging
-    analysis["count"] = tags
-    analysis["score"] = 1
-    if tags > max_user_tagging:
-        analysis["score"] = 1 / tags
     return analysis
 
 
 def _parse_body(body):
     # remove images, replace whitespaces
-    pattern = r"!\[[\w\ \-\._~!$&'()*+,;=:@#\/?]*\]\([\w\-\.~!$%&'()*+,;=:@\/?]+\)"
+    pattern = (
+        r"!\[[\w\"\-\.~!#$%&'()*+,;=:@\/?\ ]*\]\([\w\"\-\.~!#$%&'()*+,;=:@\/?\ ]+\)"
+    )
     cleaned = re.sub(pattern, "", body)
     cleaned = cleaned.replace("\n", " ")
 
@@ -136,23 +129,26 @@ def _parse_body(body):
         r"[*]+",
         r"[~]+",
         r"[_]+",
-        r"[`]+[\w]*[\ ]?",  # headers, text formatting
+        r"[#]+",  # code blocks
+        r"[`]+[\w]*[\ ]?",  # code blocks
         r"\|[\-]+\|[\-]+\|",  # table separator
         r"[\ ]*\|[\ ]*",  # remove pipe symbols
-        r"<[\/]?[a-zA-Z]+[1-6]?[\ \w\=\"\']+>",  # html tags
-        r"\]\([\w\d\-._~!$&'()*+,;=:@#\/?]+\)",  # links, right-side
+        r"<[\/]?[a-zA-Z]+[1-6]?[\w\"\-\.~!#$%&'()*+,;=:@\/?\ ]+>",  # html tags
+        r"\]\([\w\"\-\.~!#$%&'*+,;=:@\/?\ ]+\)",  # links, right-side
         r">[\ ]?",
         r"--[\-]+",  # blocks, horizontal rule
-        r"[\(\[\{\}\]\)]",
-    ]  # trailing parentheses, brackets, and braces
+        r"[\(\[\{\}\]\)]",  # trailing parentheses, brackets, and braces
+        r"[^\w\s]",
+    ]  
     for pattern in patterns:
         cleaned = re.sub(pattern, "", cleaned)
     cleaned = re.sub(r"[\s]+", " ", cleaned)
 
     ## strip non-ascii characters
     stripped = re.sub(r"[^\ -~]", "", cleaned)
-    
+
     return cleaned, stripped
+
 
 def _analyze_body(cleaned, stripped):
     analysis = {}
@@ -160,21 +156,32 @@ def _analyze_body(cleaned, stripped):
     analysis["stripped"] = len(stripped.split(" "))
     analysis["seo_keywords"] = _get_bigrams(stripped)
 
+    words = list(re.findall(r"\b\w\w+\b", stripped.lower()))[:200]
+    words = len([x for x in words if x not in ENGLISH_10K_WORDS])
+    if words > 50:
+        analysis["stripped"] /= 2
+        analysis["cleaned"] /= 2
+
     analysis["above_499"] = analysis["stripped"] > 499
     analysis["above_999"] = analysis["stripped"] > 999
 
-    analysis["score"] = ((analysis["stripped"] / analysis["cleaned"]) + analysis["above_499"] + analysis["above_999"]) / 3
+    analysis["score"] = (
+        (analysis["stripped"] / analysis["cleaned"])
+        + analysis["above_499"]
+        + analysis["above_999"]
+    ) / 3
     return analysis
+
 
 def _get_bigrams(contents, occurrence=4, limit=5):
     occurrence = int(occurrence)
     limit = int(limit)
-    
+
     bigrams = {}
     words = list(re.findall(r"\b\w\w+\b", contents.lower()))
     words = [x for x in words if x not in ENGLISH_STOP_WORDS]
-    for i in range(len(words)-2):
-        bigram = " ".join(words[i:i+2])
+    for i in range(len(words) - 2):
+        bigram = " ".join(words[i : i + 2])
         bigrams[bigram] = bigrams.get(bigram, 0) + 1
 
     keywords = []
@@ -182,12 +189,13 @@ def _get_bigrams(contents, occurrence=4, limit=5):
         if o >= occurrence:
             keywords.append([b, o])
     keywords = list(reversed(sorted(keywords)))[:limit]
-    return { b:o for b, o in keywords }
+    return {b: o for b, o in keywords}
+
 
 def _analyze_images(body, word_count):
     analysis = {}
     ## get image to text ratio
-    image_ratio = 400 / 1
+    image_ratio = 400 / 3
     pattern = r"!\[[\w\ \-\._~!$&'()*+,;=:@#\/?]*\]\([\w\-\.~!$%&'()*+,;=:@\/?]+\)"
     analysis["count"] = len(list(re.findall(pattern, body)))
     analysis["score"] = 0
@@ -195,4 +203,25 @@ def _analyze_images(body, word_count):
         value = abs(((word_count / analysis["count"]) - image_ratio))
         if 0 <= value <= image_ratio:
             analysis["score"] = 1 - (value / image_ratio)
+    return analysis
+
+
+def _analyze_overtagging(body, max_user_tags):
+    analysis = {}
+    tags = len(re.findall(r"[\ ]?@[a-z0-9\-\.]{3,16}[\ ]?", body))
+    analysis["max_user_tags"] = max_user_tags
+    analysis["count"] = tags
+    analysis["score"] = 1
+    if tags > max_user_tags:
+        analysis["score"] = 0.5 + (1 / tags)
+    return analysis
+
+
+def _analyze_tags(tags, max_tags):
+    analysis = {}
+    analysis["max_tags"] = max_tags
+    analysis["count"] = len(tags)
+    analysis["score"] = 1
+    if analysis["count"] > max_tags:
+        analysis["score"] = 0.5 + (1 / (analysis["count"] - 5))
     return analysis
