@@ -6,7 +6,7 @@ with open("README.md", "r") as f:
 setuptools.setup(
     name = "hive-scrutineer",
     packages = ["scrutineer"],
-    version = "0.9.0",
+    version = "0.9.1",
     license="MIT",
     description = "Performance and quality analytics on Hive Posts.",
     long_description=long_description,

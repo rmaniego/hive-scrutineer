@@ -13,22 +13,27 @@ import re
 from nektar import Waggle
 
 class Scrutineer:
-    def __init__(self, minimum_score=80, max_user_tagging=5, retries=1, deep=False):
-        self._weights = [1, 1, 1, 1]
+    def __init__(self, minimum_score=80, max_user_tagging=5, max_tags=5, retries=1, deep=False):
+        self._weights = [1, 1, 1, 1, 1]
         self._minimum_score = float(minimum_score)
         self._max_user_tagging = int(max_user_tagging)
+        self._max_tags = int(max_tags)
         self._retries = int(retries)
         self._deep = isinstance(deep, bool) * bool(deep)
         self.analysis = {}
 
-    def set_weights(self, title, body, images, tagging):
-        self._weights = [float(title), float(body), float(images), float(tagging)]
+    def set_weights(self, title, body, images, tagging, tags):
+        self._weights = [float(title), float(body), float(images), float(tagging), float(tags)]
 
-    def analyze(self, author, permlink, skip_bad_title=False):
-        hive = Waggle(author)
-        post = hive.get_post(author, permlink, retries=self._retries)
-        if not post:
-            return {}
+    def analyze(self, post, permlink=None, skip_bad_title=True):
+        author = post
+        if isinstance(post, dict):
+            author = post["author"]
+            permlink = post["permlink"]
+        if not isinstance(post, dict):
+            post = Waggle(author).get_post(author, permlink, retries=self._retries)
+            if not post:
+                return {}
 
         self.analysis["title"] = _analyze_title(post["title"])
         
@@ -39,7 +44,7 @@ class Scrutineer:
         if self._deep:
             unique_lines = []
             raw_body = body.split("\n")
-            blogs = hive.blogs(author, limit=3)
+            blogs = Waggle(author).blogs(author, limit=3)
             for blog in blogs:
                 if blog["permlink"] == permlink:
                     continue
@@ -58,11 +63,15 @@ class Scrutineer:
 
         self.analysis["tagging"] = _analyze_overtagging(stripped, self._max_user_tagging)
         
+        tags = post["json_metadata"]["tags"]
+        self.analysis["tags"] = _analyze_tags(tags, self._max_tags)
+        
         score = 0
         score += self.analysis["title"]["score"] * self._weights[0]
         score += self.analysis["body"]["score"] * self._weights[1]
         score += self.analysis["images"]["score"] * self._weights[2]
         score += self.analysis["tagging"]["score"] * self._weights[3]
+        score += self.analysis["tags"]["score"] * self._weights[4]
         score /= sum(self._weights)
         
         self.analysis["deep"] = self._deep
@@ -81,6 +90,14 @@ def _analyze_title(title):
     )
     return analysis
 
+def _analyze_tags(tags, max_tags):
+    analysis = {}
+    analysis["max_tags"] = max_tags
+    analysis["count"] = len(tags)
+    analysis["score"] = 1
+    if analysis["count"] > max_tags:
+        analysis["score"] = 1 / analysis["count"]
+    return analysis
 
 def _analyze_overtagging(body, max_user_tagging):
     analysis = {}
