@@ -38,7 +38,6 @@ class Scrutineer:
 
         self.analysis["title"] = _analyze_title(post["title"])
         if self.analysis["title"]["score"] < (self._minimum_score/100):
-            print(self.analysis["title"]["score"])
             return {}
 
         body = post["body"]
@@ -62,7 +61,6 @@ class Scrutineer:
             keywords = self.analysis["body"]["seo_keywords"]
             self.analysis["title"] = _analyze_title(post["title"], keywords)
             if self.analysis["title"]["score"] < (self._minimum_score/100):
-                print(self.analysis["title"]["score"])
                 return {}
 
         word_count = self.analysis["body"]["stripped"]
