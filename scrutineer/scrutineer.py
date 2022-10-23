@@ -76,7 +76,9 @@ class Scrutineer:
 
         self.analysis["tagging"] = _analyze_overtagging(stripped, self._max_user_tags)
 
-        tags = post["json_metadata"]["tags"]
+        tags = []
+        if "tags" in post["json_metadata"]:
+            tags = post["json_metadata"]["tags"]
         self.analysis["tags"] = _analyze_tags(tags, self._max_tags)
 
         score = 0
@@ -221,7 +223,9 @@ def _analyze_tags(tags, max_tags):
     analysis = {}
     analysis["max_tags"] = max_tags
     analysis["count"] = len(tags)
-    analysis["score"] = 1
-    if analysis["count"] > max_tags:
-        analysis["score"] = 0.5 + (1 / (analysis["count"] - 5))
+    analysis["score"] = 0
+    if analysis["count"]:
+        analysis["score"] = 1
+        if analysis["count"] > max_tags:
+            analysis["score"] = 0.5 + (1 / (analysis["count"] - 5))
     return analysis
