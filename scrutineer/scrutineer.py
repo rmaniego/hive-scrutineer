@@ -45,7 +45,10 @@ class Scrutineer:
             if not post:
                 return {}
 
-        self.analysis["title"] = _analyze_title(post["title"])
+        title = post["title"]
+        if not len(title):
+            return {}
+        self.analysis["title"] = _analyze_title(title)
         if self.analysis["title"]["readability"] < (self._minimum_score / 100):
             return {}
 
@@ -69,7 +72,7 @@ class Scrutineer:
 
         if self._deep:
             keywords = self.analysis["body"]["seo_keywords"]
-            self.analysis["title"] = _analyze_title(post["title"], keywords)
+            self.analysis["title"] = _analyze_title(title, keywords)
 
         word_count = self.analysis["body"]["stripped"]
         self.analysis["images"] = _analyze_images(body, word_count)
@@ -97,6 +100,7 @@ class Scrutineer:
 def _analyze_title(title, keywords=None):
     analysis = {}
     length = len(title.encode("utf-8"))
+    
     analysis["below_min"] = length < 30
     analysis["above_max"] = length > 60
 

@@ -1,3 +1,5 @@
+KEYBOARD_LANGUAGES = set(["English", "Francais", "Deutsch", "Italiano", "Espanol", "Dansk", "Norsk", "Nederlands", "Svenska", "Portuguese", "Suomi", "Russian", "Polski", "Greek", "Magyar", "Turkce", "Cesky", "Simplified Chinese", "Traditional Chinese", "Korean", "Japanese"])
+
 ENGLISH_STOP_WORDS = frozenset(
     [
         "0o",

@@ -7,7 +7,7 @@ Performance and quality analytics on Hive Posts.
 
 """
 
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 from .scrutineer import Scrutineer
 
 __all__ = ["scrutineer"]
