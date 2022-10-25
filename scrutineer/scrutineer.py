@@ -10,7 +10,7 @@
 """
 
 import re
-from .constants import ENGLISH_STOP_WORDS, ENGLISH_10K_WORDS
+from .constants import ENGLISH_STOP_WORDS, ENGLISH_10K_WORDS #, LANGUAGE_MODEL
 from nektar import Waggle
 
 
@@ -66,9 +66,10 @@ class Scrutineer:
                         unique_lines.append(line)
                 break
             body = "\n".join(unique_lines)
+        
 
         cleaned, stripped = _parse_body(body)
-        self.analysis["body"] = _analyze_body(cleaned, stripped)
+        self.analysis["body"] = _analyze_body(cleaned, stripped, self._deep)
 
         if self._deep:
             keywords = self.analysis["body"]["seo_keywords"]
@@ -76,8 +77,7 @@ class Scrutineer:
 
         word_count = self.analysis["body"]["stripped"]
         self.analysis["images"] = _analyze_images(body, word_count)
-
-        self.analysis["tagging"] = _analyze_overtagging(stripped, self._max_user_tags)
+        self.analysis["tagging"] = _analyze_overtagging(body, self._max_user_tags)
 
         tags = []
         if "tags" in post["json_metadata"]:
@@ -144,6 +144,7 @@ def _parse_body(body):
         r">[\ ]?",
         r"--[\-]+",  # blocks, horizontal rule
         r"[\(\[\{\}\]\)]",  # trailing parentheses, brackets, and braces
+        r"@[a-z0-9\-\.]{3,16}",  # user tags
         r"[^\w\s]",
     ]  
     for pattern in patterns:
@@ -152,21 +153,38 @@ def _parse_body(body):
 
     ## strip non-ascii characters
     stripped = re.sub(r"[^\ -~]", "", cleaned)
-
     return cleaned, stripped
 
-
-def _analyze_body(cleaned, stripped):
+def _analyze_body(cleaned, stripped, deep):
     analysis = {}
     analysis["cleaned"] = len(cleaned.split(" "))
     analysis["stripped"] = len(stripped.split(" "))
     analysis["seo_keywords"] = _get_bigrams(stripped)
 
-    words = list(re.findall(r"\b\w\w+\b", stripped.lower()))[:200]
+    """
+    
+    analysis["languages"] = {}
+    if deep:
+        guesses = []
+        chunks = list(re.findall(r".{50}", stripped))
+        normalized = [_normalize(x.ljust(50, " ")) for x in chunks]
+        for chunk in normalized:
+            languages = []
+            for lang, weights in LANGUAGE_MODEL.items():
+                likelihood = _resultant(chunk, weights)
+                languages.append([likelihood, lang])
+            guess = list(reversed(sorted(languages)))[0][1]
+            guesses.append(guess)
+        lines = len(guesses)
+        for lang in set(guesses):
+            analysis["languages"][lang] = guesses.count(lang) / lines
+    """
+
+    words = list(re.findall(r"\b\w\w+\b", stripped.lower()))
     words = len([x for x in words if x not in ENGLISH_10K_WORDS])
     if words > 50:
-        analysis["stripped"] /= 2
-        analysis["cleaned"] /= 2
+        analysis["stripped"] -= words
+        analysis["cleaned"] -= words
 
     analysis["above_499"] = analysis["stripped"] > 499
     analysis["above_999"] = analysis["stripped"] > 999
@@ -214,12 +232,12 @@ def _analyze_images(body, word_count):
 
 def _analyze_overtagging(body, max_user_tags):
     analysis = {}
-    tags = len(re.findall(r"[\ ]?@[a-z0-9\-\.]{3,16}[\ ]?", body))
+    tags = len(re.findall(r"@[a-z0-9\-\.]{3,16}", body))
     analysis["max_user_tags"] = max_user_tags
     analysis["count"] = tags
     analysis["score"] = 1
     if tags > max_user_tags:
-        analysis["score"] = 0.5 + (1 / tags)
+        analysis["score"] = 1 / tags
     return analysis
 
 
@@ -231,5 +249,22 @@ def _analyze_tags(tags, max_tags):
     if analysis["count"]:
         analysis["score"] = 1
         if analysis["count"] > max_tags:
-            analysis["score"] = 0.5 + (1 / (analysis["count"] - 5))
+            analysis["score"] = 1 / (analysis["count"] - 5)
     return analysis
+
+def _normalize(pattern, value=None):
+    mx = 1114111
+    pattern = [(ord(item)/mx) for item in pattern]
+    if value is not None:
+        return pattern + [value]
+    return pattern
+
+def _resultant(x, w):
+    """
+        x: inputs
+        w: weights
+    """
+    v = x[0] * w[0]
+    for i in range(1, len(x)):
+        v += x[i] * w[i]
+    return (v + w[-1])
