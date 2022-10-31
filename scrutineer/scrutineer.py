@@ -70,6 +70,9 @@ class Scrutineer:
         
 
         cleaned, stripped = _parse_body(body)
+        if not (len(cleaned) and len(stripped)):
+            return {}
+
         self.analysis["body"] = _analyze_body(cleaned, stripped, self._deep)
 
         if self._deep:
