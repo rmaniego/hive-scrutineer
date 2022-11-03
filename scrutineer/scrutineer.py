@@ -71,12 +71,14 @@ class Scrutineer:
         cleaned, stripped = _parse_body(body)
         if not (len(cleaned) and len(stripped)):
             return {}
-
+        
         self.analysis["body"] = _analyze_body(cleaned, stripped, self._deep)
 
         if self._deep:
             keywords = self.analysis["body"]["seo_keywords"]
             self.analysis["title"] = _analyze_title(title, keywords)
+        if self.analysis["title"]["readability"] < (self._minimum_score / 100):
+            return {}
 
         word_count = self.analysis["body"]["stripped"]
         self.analysis["images"] = _analyze_images(body, word_count)
