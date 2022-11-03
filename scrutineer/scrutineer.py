@@ -67,7 +67,6 @@ class Scrutineer:
                         unique_lines.append(line)
                 break
             body = "\n".join(unique_lines)
-        
 
         cleaned, stripped = _parse_body(body)
         if not (len(cleaned) and len(stripped)):
@@ -191,14 +190,26 @@ class Analytics:
 
 def _analyze_title(title, keywords=None):
     analysis = {}
-    analysis["title"] = title
+    # analysis["title"] = title
+    
+    title = re.sub(r"-", "", title)
+    title = re.sub(r"\u2013", "", title)
+    title = re.sub(r"\u2014", "", title)
+    title = re.sub(r"\#[\d]+", "", title)
+    title = re.sub(r"\$[\d]+", "", title)
+    title = re.sub(r"\b[\w]+[']s\b", "", title)
+    title = re.sub(r"\s{2,}", " ", title).strip()
     length = len(title.encode("utf-8"))
+    analysis["title"] = title
     
     analysis["below_min"] = length < 20
     analysis["above_max"] = length > 60
+    
+    words = re.sub(r"[^\w\'\,\ ]+", " ", title.lower()).split(" ")
+    stripped = " ".join([w for w in words if w in KNOWN_WORDS])
 
     analysis["seo_keywords"] = 0
-    analysis["readability"] = len(re.sub(r"[^\w\'\,\-\ ]+", "", title)) / length
+    analysis["readability"] = len(stripped) / length
     if isinstance(keywords, dict):
         for keyword in keywords.keys():
             if keyword in title.lower():
@@ -293,14 +304,17 @@ def _get_bigrams(contents, occurrence=4, limit=5):
 def _analyze_images(body, word_count):
     analysis = {}
     ## get image to text ratio
-    image_ratio = 400 / 3
     pattern = r"!\[[\w\ \-\._~!$&'()*+,;=:@#\/?]*\]\([\w\-\.~!$%&'()*+,;=:@\/?]+\)"
     analysis["count"] = len(list(re.findall(pattern, body)))
     analysis["score"] = 0
     if analysis["count"]:
-        value = abs(((word_count / analysis["count"]) - image_ratio))
-        if 0 <= value <= image_ratio:
-            analysis["score"] = 1 - (value / image_ratio)
+        scores = [0]
+        for image in (1, 2, 3):
+            image_ratio = 400 / image
+            value = abs(((word_count / analysis["count"]) - image_ratio))
+            if 0 <= value <= image_ratio:
+                scores.append((1 - (value / image_ratio)))
+        analysis["score"] = max(scores)
     return analysis
 
 
