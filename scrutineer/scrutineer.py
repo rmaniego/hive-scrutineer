@@ -54,7 +54,7 @@ class Scrutineer:
         if not len(title):
             return {}
         self.analysis["title"] = _analyze_title(title)
-        if self.analysis["title"]["readability"] < 0.9:
+        if self.analysis["title"]["readability"] < 0.8:
             return {}
 
         body = post["body"]
@@ -81,7 +81,7 @@ class Scrutineer:
         if self._deep:
             keywords = self.analysis["body"]["seo_keywords"]
             self.analysis["title"] = _analyze_title(title, keywords)
-        if self.analysis["title"]["readability"] < 0.9:
+        if self.analysis["title"]["readability"] < 0.8:
             return {}
 
         self.analysis["emojis"] = _analyze_emojis(body, self._max_emojis)
