@@ -54,7 +54,7 @@ class Scrutineer:
         if not len(title):
             return {}
         self.analysis["title"] = _analyze_title(title)
-        if self.analysis["title"]["readability"] < (self._minimum_score / 100):
+        if self.analysis["title"]["readability"] < 0.9:
             return {}
 
         body = post["body"]
@@ -77,13 +77,14 @@ class Scrutineer:
             return {}
         
         self.analysis["body"] = _analyze_body(cleaned, self._deep)
-        self.analysis["emojis"] = _analyze_emojis(body, self._max_emojis)
 
         if self._deep:
             keywords = self.analysis["body"]["seo_keywords"]
             self.analysis["title"] = _analyze_title(title, keywords)
-        if self.analysis["title"]["readability"] < (self._minimum_score / 100):
+        if self.analysis["title"]["readability"] < 0.9:
             return {}
+
+        self.analysis["emojis"] = _analyze_emojis(body, self._max_emojis)
 
         word_count = self.analysis["body"]["cleaned"]
         self.analysis["images"] = _analyze_images(body, word_count)
@@ -284,7 +285,8 @@ def _analyze_body(cleaned, deep):
 def _analyze_emojis(body, limit=0):
     analysis = {}
     analysis["max_emojis"] = limit
-    analysis["emojis"] = [c for c in body if c in EMOJIS]
+    chars = list(re.findall(r"[^ -~]", body))
+    analysis["emojis"] = [c for c in chars if c in EMOJIS]
     analysis["count"] = len(analysis["emojis"])
     analysis["score"] = 1
     if analysis["count"] > int(limit):
