@@ -10,27 +10,29 @@
 """
 
 import re
-from .constants import STOP_WORDS, ENGLISH_WORDS
+from .constants import EMOJIS, STOP_WORDS, ENGLISH_WORDS
 from nektar import Waggle
 
 KNOWN_WORDS = STOP_WORDS+ENGLISH_WORDS
 
 class Scrutineer:
     def __init__(
-        self, minimum_score=80, max_user_tags=5, max_tags=5, retries=1, deep=False
+        self, minimum_score=80, max_emojis=0, max_user_tags=5, max_tags=5, retries=1, deep=False
     ):
-        self._weights = [1, 1, 1, 1, 1]
+        self._weights = [1, 1, 1, 1, 1, 1]
         self._minimum_score = float(minimum_score)
+        self._max_emojis = int(max_emojis)
         self._max_user_tags = int(max_user_tags)
         self._max_tags = int(max_tags)
         self._retries = int(retries)
         self._deep = isinstance(deep, bool) * bool(deep)
         self.analysis = {}
 
-    def set_weights(self, title, body, images, tagging, tags):
+    def set_weights(self, title, body, emojis, images, tagging, tags):
         self._weights = [
             float(title),
             float(body),
+            float(emojis),
             float(images),
             float(tagging),
             float(tags),
@@ -45,6 +47,8 @@ class Scrutineer:
             post = Waggle(author).get_post(author, permlink, retries=self._retries)
             if not post:
                 return {}
+        self.analysis["author"] = author
+        self.analysis["permlink"] = permlink
 
         title = post["title"]
         if not len(title):
@@ -68,11 +72,12 @@ class Scrutineer:
                 break
             body = "\n".join(unique_lines)
 
-        cleaned, stripped = _parse_body(body)
-        if not (len(cleaned) and len(stripped)):
+        cleaned = _parse_body(body)
+        if not len(cleaned):
             return {}
         
-        self.analysis["body"] = _analyze_body(cleaned, stripped, self._deep)
+        self.analysis["body"] = _analyze_body(cleaned, self._deep)
+        self.analysis["emojis"] = _analyze_emojis(body, self._max_emojis)
 
         if self._deep:
             keywords = self.analysis["body"]["seo_keywords"]
@@ -80,7 +85,7 @@ class Scrutineer:
         if self.analysis["title"]["readability"] < (self._minimum_score / 100):
             return {}
 
-        word_count = self.analysis["body"]["stripped"]
+        word_count = self.analysis["body"]["cleaned"]
         self.analysis["images"] = _analyze_images(body, word_count)
         self.analysis["tagging"] = _analyze_overtagging(body, self._max_user_tags)
 
@@ -92,9 +97,10 @@ class Scrutineer:
         score = 0
         score += self.analysis["title"]["score"] * self._weights[0]
         score += self.analysis["body"]["score"] * self._weights[1]
-        score += self.analysis["images"]["score"] * self._weights[2]
-        score += self.analysis["tagging"]["score"] * self._weights[3]
-        score += self.analysis["tags"]["score"] * self._weights[4]
+        score += self.analysis["emojis"]["score"] * self._weights[2]
+        score += self.analysis["images"]["score"] * self._weights[3]
+        score += self.analysis["tagging"]["score"] * self._weights[4]
+        score += self.analysis["tags"]["score"] * self._weights[5]
         score /= sum(self._weights)
 
         self.analysis["deep"] = self._deep
@@ -194,24 +200,25 @@ def _analyze_title(title, keywords=None):
     analysis = {}
     # analysis["title"] = title
     
-    title = re.sub(r"-", "", title)
-    title = re.sub(r"\u2013", "", title)
-    title = re.sub(r"\u2014", "", title)
-    title = re.sub(r"\#[\d]+", "", title)
-    title = re.sub(r"\$[\d]+", "", title)
+    title = re.sub(r"-", " ", title)
+    title = re.sub(r"\u2013", " ", title)
+    title = re.sub(r"\u2014", " ", title)
+    title = re.sub(r"\#[\d]+", " ", title)
+    title = re.sub(r"\$[\d\,\.]+", " ", title)
     title = re.sub(r"\b[\w]+[']s\b", "", title)
     title = re.sub(r"\s{2,}", " ", title).strip()
     length = len(title.encode("utf-8"))
     analysis["title"] = title
     
+    words = re.sub(r"[^\w\'\,\ ]+", " ", title.lower()).split(" ")
+    cleaned = " ".join([w for w in words if w in KNOWN_WORDS])
+    analysis["cleaned"] = cleaned.strip()
+    
     analysis["below_min"] = length < 20
     analysis["above_max"] = length > 60
-    
-    words = re.sub(r"[^\w\'\,\ ]+", " ", title.lower()).split(" ")
-    stripped = " ".join([w for w in words if w in KNOWN_WORDS])
 
     analysis["seo_keywords"] = 0
-    analysis["readability"] = len(stripped) / length
+    analysis["readability"] = len(cleaned) / length
     if isinstance(keywords, dict):
         for keyword in keywords.keys():
             if keyword in title.lower():
@@ -256,26 +263,17 @@ def _parse_body(body):
     ]  
     for pattern in patterns:
         cleaned = re.sub(pattern, "", cleaned)
-    cleaned = re.sub(r"[\s]+", " ", cleaned)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    return cleaned
 
-    ## strip non-ascii characters
-    stripped = re.sub(r"[^'\w\-\s]", "", cleaned)
-    stripped = re.sub(r"[^\ -~]", "", stripped)
-    return cleaned, stripped
-
-def _analyze_body(cleaned, stripped, deep):
+def _analyze_body(cleaned, deep):
     analysis = {}
-    analysis["cleaned"] = len([1 for x in cleaned.split(" ") if x.strip()])
-    analysis["stripped"] = len([1 for x in stripped.split(" ") if x.strip()])
-    
-    corpus = stripped.split(" ")
+    corpus = cleaned.split(" ")
+    analysis["cleaned"] = len([1 for x in corpus if x.strip()])
     analysis["english"] = len([x for x in corpus if x in KNOWN_WORDS])
-    
-    analysis["seo_keywords"] = _get_bigrams(stripped)
-
-    analysis["above_400"] = analysis["stripped"] > 400
-    analysis["above_800"] = analysis["stripped"] > 800
-
+    analysis["seo_keywords"] = _get_bigrams(cleaned)
+    analysis["above_400"] = analysis["english"] > 400
+    analysis["above_800"] = analysis["english"] > 800
     analysis["score"] = (
         (analysis["english"] / analysis["cleaned"])
         + analysis["above_400"]
@@ -283,6 +281,16 @@ def _analyze_body(cleaned, stripped, deep):
     ) / 3
     return analysis
 
+def _analyze_emojis(body, limit=0):
+    analysis = {}
+    analysis["max_emojis"] = limit
+    analysis["emojis"] = [c for c in body if c in EMOJIS]
+    analysis["count"] = len(analysis["emojis"])
+    analysis["score"] = 1
+    if analysis["count"] > int(limit):
+        analysis["score"] = limit / analysis["count"]
+    return analysis
+        
 
 def _get_bigrams(contents, occurrence=4, limit=5):
     occurrence = int(occurrence)
