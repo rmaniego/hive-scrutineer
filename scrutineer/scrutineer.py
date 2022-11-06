@@ -38,7 +38,7 @@ class Scrutineer:
             float(tags),
         ]
 
-    def analyze(self, post, permlink=None, skip_bad_title=True):
+    def analyze(self, post, permlink=None, auto_skip=False):
         author = post
         if isinstance(post, dict):
             author = post["author"]
@@ -54,7 +54,7 @@ class Scrutineer:
         if not len(title):
             return {}
         self.analysis["title"] = _analyze_title(title)
-        if self.analysis["title"]["readability"] < 0.8:
+        if auto_skip and (self.analysis["title"]["readability"] < 0.8):
             return {}
 
         body = post["body"]
@@ -76,15 +76,18 @@ class Scrutineer:
         if not len(cleaned):
             return {}
         
+        self.analysis["body"] = {}
+        self.analysis["emojis"] = _analyze_emojis(body, self._max_emojis)
+        if auto_skip and (self.analysis["emojis"]["score"] < 0.8):
+            return {}
+        
         self.analysis["body"] = _analyze_body(cleaned, self._deep)
 
         if self._deep:
             keywords = self.analysis["body"]["seo_keywords"]
             self.analysis["title"] = _analyze_title(title, keywords)
-        if self.analysis["title"]["readability"] < 0.8:
+        if auto_skip and (self.analysis["title"]["readability"] < 0.8):
             return {}
-
-        self.analysis["emojis"] = _analyze_emojis(body, self._max_emojis)
 
         word_count = self.analysis["body"]["cleaned"]
         self.analysis["images"] = _analyze_images(body, word_count)
