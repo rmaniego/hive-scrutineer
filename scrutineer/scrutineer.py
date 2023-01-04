@@ -180,16 +180,20 @@ def _analyze_title(title, keywords, full=False):
     bmin = length < 20
     amax = length > 80
 
+    score = 0
     skeywords = 0
-    readability = len(cleaned) / length
-    if isinstance(keywords, dict):
-        words = title.lower()
-        for keyword in keywords.keys():
-            if keyword in words:
-                skeywords = 1
-                break
+    readability = 0
+    
+    if length:
+        readability = len(cleaned) / length
+        if isinstance(keywords, dict):
+            words = title.lower()
+            for keyword in keywords.keys():
+                if keyword in words:
+                    skeywords = 1
+                    break
+        score = int(not (bmin or amax)) * (((readability * 9.5) + (skeywords * 0.5)) / 10)
 
-    score = int(not (bmin or amax)) * (((readability * 9.5) + (skeywords * 0.5)) / 10)
     if not full:
         return score
 
