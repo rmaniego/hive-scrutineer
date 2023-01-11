@@ -87,6 +87,7 @@ class Scrutineer:
                 return {}
         self.analysis["author"] = author
         self.analysis["permlink"] = permlink
+        self.analysis["url"] = post["url"]
 
         title = post["title"]
         if not len(title):
@@ -202,8 +203,9 @@ def _analyze_title(title, keywords, full=False):
     analysis["cleaned"] = cleaned
     analysis["below_min"] = bmin
     analysis["above_max"] = amax
+    analysis["keywords"] = keywords
     analysis["readability"] = readability
-    analysis["keywords"] = skeywords
+    analysis["keyword_score"] = skeywords
     analysis["score"] = score
     return analysis
 

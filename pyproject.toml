@@ -1,0 +1,29 @@
+[build-system]
+requires = ["pdm-pep517"]
+build-backend = "pdm.pep517.api"
+
+[project]
+name = "hive-scrutineer"
+version = "1.2.2"
+description = "Performance and quality analytics on Hive Posts."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "LICENSE.txt"
+keywords = ["hive", "blockchain", "seo", "quality", "analytics"]
+authors = [
+    { name="Rodney Maniego Jr." },
+    { email="rodney.maniegojr@gmail.com" }
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+
+dependencies = ["hive-nektar"]
+
+[project.urls]
+homepage = "https://github.com/rmaniego/scrutineer"
+documentation = "https://scrutineer.readthedocs.io"
