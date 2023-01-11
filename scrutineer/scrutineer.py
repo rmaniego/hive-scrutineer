@@ -85,9 +85,12 @@ class Scrutineer:
             post = account.get_post(author, permlink, retries=self._retries)
             if not post:
                 return {}
+
         self.analysis["author"] = author
         self.analysis["permlink"] = permlink
-        self.analysis["url"] = post["url"]
+
+        if self._full:
+            self.analysis["url"] = post["url"]
 
         title = post["title"]
         if not len(title):
