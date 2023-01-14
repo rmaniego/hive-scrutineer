@@ -64,6 +64,8 @@ class Scrutineer:
         self._deep = isinstance(deep, bool) * bool(deep)
         self._full = isinstance(full, bool) * bool(full)
         self.analysis = {}
+        self._blogs = []
+        self._previous = ""
 
     def set_weights(self, title, body, emojis, images, tagging, tags):
         self._weights = [
@@ -101,7 +103,12 @@ class Scrutineer:
         if self._deep:
             unique_lines = []
             raw_body = body.split("\n")
-            blogs = account.blogs(author, limit=2)
+            if author == self._previous:
+                blogs = self._blogs
+            else:
+                self.previous = author
+                blogs = account.blogs(author, limit=2)
+                self._blogs = [b for b in blogs]
             for blog in blogs:
                 if blog["permlink"] == permlink:
                     continue
@@ -111,7 +118,6 @@ class Scrutineer:
                         unique_lines.append(line)
                 break
             body = "\n".join(unique_lines)
-
         cleaned = _parse_body(body)
         if not len(cleaned):
             return {}
