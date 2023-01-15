@@ -10,10 +10,9 @@
 """
 
 import re
-from .constants import EMOJIS, STOP_WORDS, ENGLISH_WORDS
 from nektar import Waggle
-
-KNOWN_WORDS = STOP_WORDS + ENGLISH_WORDS
+from emoji import emoji_list
+from langdetect import detect_langs
 
 RE_DASH = re.compile(r"-")
 RE_EN_DASH = re.compile(r"\u2013")
@@ -39,9 +38,10 @@ RE_LINKS_RIGHT = re.compile(r"\]\([^\)]+\)")
 RE_BLOCKQUOTES = re.compile(r">[\ ]?")
 RE_HR = re.compile(r"--[\-]+")
 RE_TRAILING_PARENTHESIS = re.compile(r"[\(\[\{\}\]\)]")
-RE_USER_TAGS = re.compile(r"@[a-z0-9\-\.]{3,16}")
+RE_USER_TAGS = re.compile(r"@[a-z0-9\-\.]{3,16}[,\ ]")
 RE_NON_ASCII = re.compile(r"[^ -~]")
-RE_WORDS = re.compile(r"\b\w\w+\b")
+
+STOP_WORDS = ["0s", "3a", "3b", "3d", "6b", "6o", "a", "a's", "a1", "a2", "a3", "a4", "ab", "able", "about", "above", "abst", "ac", "accordance", "according", "accordingly", "across", "act", "actually", "ad", "added", "adj", "ae", "af", "affected", "affecting", "affects", "after", "afterwards", "ag", "again", "against", "ah", "ain", "ain't", "aj", "al", "all", "allow", "allows", "almost", "alone", "along", "already", "also", "although", "always", "am", "among", "amongst", "amoungst", "amount", "an", "and", "announce", "another", "any", "anybody", "anyhow", "anymore", "anyone", "anything", "anyway", "anyways", "anywhere", "ao", "ap", "apart", "apparently", "appear", "appreciate", "appropriate", "approximately", "ar", "are", "aren", "aren't", "arent", "arise", "around", "as", "aside", "ask", "asking", "associated", "at", "au", "auth", "av", "available", "aw", "away", "awfully", "ax", "ay", "az", "b", "b1", "b2", "b3", "ba", "back", "bc", "bd", "be", "became", "because", "become", "becomes", "becoming", "been", "before", "beforehand", "begin", "beginning", "beginnings", "begins", "behind", "being", "believe", "below", "beside", "besides", "best", "better", "between", "beyond", "bi", "bill", "biol", "bj", "bk", "bl", "bn", "both", "bottom", "bp", "br", "brief", "briefly", "bs", "bt", "bu", "but", "bx", "by", "c", "c'mon", "c's", "c1", "c2", "c3", "ca", "call", "came", "can", "can't", "cannot", "cant", "cause", "causes", "cc", "cd", "ce", "certain", "certainly", "cf", "cg", "ch", "changes", "ci", "cit", "cj", "cl", "clearly", "cm", "cn", "co", "com", "come", "comes", "con", "concerning", "consequently", "consider", "considering", "contain", "containing", "contains", "corresponding", "could", "couldn", "couldn't", "couldnt", "course", "cp", "cq", "cr", "cry", "cs", "ct", "cu", "currently", "cv", "cx", "cy", "cz", "d", "d2", "da", "date", "dc", "dd", "definitely", "describe", "described", "despite", "detail", "df", "di", "did", "didn", "didn't", "different", "dj", "dk", "dl", "do", "does", "doesn", "doesn't", "doing", "don", "don't", "done", "down", "downwards", "dp", "dr", "ds", "dt", "du", "due", "during", "dx", "dy", "e", "e2", "e3", "ea", "each", "ec", "ed", "edu", "ee", "ef", "effect", "eg", "ei", "eight", "eighty", "either", "ej", "eleven", "else", "elsewhere", "em", "empty", "end", "ending", "enough", "entirely", "eo", "ep", "eq", "er", "es", "especially", "est", "et", "et-al", "etc", "eu", "ev", "even", "ever", "every", "everybody", "everyone", "everything", "everywhere", "ex", "exactly", "example", "except", "ey", "f", "f2", "fa", "far", "fc", "few", "ff", "fi", "fifteen", "fifth", "fify", "fill", "find", "fire", "first", "five", "fix", "fj", "fl", "fn", "fo", "followed", "following", "follows", "for", "former", "formerly", "forth", "forty", "found", "four", "fr", "from", "front", "fs", "ft", "fu", "full", "further", "furthermore", "fy", "g", "ga", "gave", "ge", "get", "gets", "getting", "gi", "give", "giveaway", "given", "gives", "giving", "gj", "gl", "go", "goes", "going", "gone", "got", "gotten", "gr", "greetings", "gs", "gy", "h", "h2", "h3", "had", "hadn", "hadn't", "happens", "hardly", "has", "hasn", "hasn't", "hasnt", "have", "haven", "haven't", "having", "he", "he'd", "he'll", "he's", "hed", "hello", "help", "hence", "her", "here", "here's", "hereafter", "hereby", "herein", "heres", "hereupon", "hers", "herself", "hes", "hh", "hi", "hid", "him", "himself", "his", "hither", "hj", "ho", "home", "hopefully", "how", "how's", "howbeit", "however", "hr", "hs", "http", "hu", "hundred", "hy", "i", "i'd", "i'll", "i'm", "i've", "i2", "i3", "i4", "i6", "i7", "i8", "ia", "ib", "ibid", "ic", "id", "ie", "if", "ig", "ignored", "ih", "ii", "ij", "il", "im", "immediate", "immediately", "importance", "important", "in", "inasmuch", "inc", "indeed", "index", "indicate", "indicated", "indicates", "information", "inner", "insofar", "instead", "interest", "into", "invention", "inward", "io", "ip", "iq", "ir", "is", "isn", "isn't", "it", "it'd", "it'll", "it's", "itd", "its", "itself", "iv", "ix", "iy", "iz", "j", "jj", "jr", "js", "jt", "ju", "just", "k", "ke", "keep", "keeps", "kept", "kg", "kj", "km", "know", "known", "knows", "ko", "l", "l2", "la", "largely", "last", "lately", "later", "latter", "latterly", "lb", "lc", "le", "least", "les", "less", "lest", "let", "let's", "lets", "lf", "like", "liked", "likely", "line", "little", "lj", "ll", "ln", "lo", "look", "looking", "looks", "los", "lr", "ls", "lt", "ltd", "m", "m2", "ma", "made", "mainly", "make", "makes", "many", "may", "maybe", "me", "mean", "means", "meantime", "meanwhile", "merely", "mg", "might", "mightn", "mightn't", "mill", "million", "mine", "miss", "ml", "mn", "mo", "more", "moreover", "most", "mostly", "move", "mr", "mrs", "ms", "mt", "mu", "much", "mug", "must", "mustn't", "my", "myself", "n", "n2", "na", "name", "namely", "nay", "nc", "nd", "ne", "near", "nearly", "necessarily", "necessary", "need", "needn", "needn't", "needs", "neither", "never", "nevertheless", "new", "next", "ng", "ni", "nine", "ninety", "nj", "nl", "nn", "no", "nobody", "non", "none", "nonetheless", "noone", "nor", "normally", "nos", "not", "noted", "nothing", "novel", "now", "nowhere", "nr", "ns", "nt", "ny", "o", "oa", "ob", "obtain", "obtained", "obviously", "oc", "od", "of", "off", "often", "og", "oh", "oi", "oj", "ok", "okay", "ol", "old", "om", "omitted", "on", "once", "one", "ones", "only", "onto", "oo", "op", "oq", "or", "ord", "os", "ot", "other", "others", "otherwise", "ou", "ought", "our", "ours", "ourselves", "out", "outside", "over", "overall", "ow", "owing", "own", "ox", "oz", "p", "p1", "p2", "p3", "page", "pagecount", "pages", "par", "part", "particular", "particularly", "pas", "past", "pc", "pd", "pe", "per", "perhaps", "pf", "ph", "pi", "pj", "pk", "pl", "placed", "please", "plus", "pm", "pn", "po", "poorly", "possible", "possibly", "potentially", "pp", "pq", "pr", "predominantly", "present", "presumably", "previously", "primarily", "probably", "promptly", "proud", "provides", "ps", "pt", "pu", "put", "py", "q", "qj", "qu", "que", "quickly", "quite", "qv", "r", "r2", "ra", "ran", "rather", "rc", "rd", "re", "readily", "really", "reasonably", "recent", "recently", "ref", "refs", "regarding", "regardless", "regards", "related", "relatively", "research", "research-articl", "respectively", "resulted", "resulting", "results", "rf", "rh", "ri", "right", "rj", "rl", "rm", "rn", "ro", "rq", "rr", "rs", "rt", "ru", "run", "rv", "ry", "s", "s2", "sa", "said", "same", "saw", "say", "saying", "says", "sc", "sd", "se", "sec", "second", "secondly", "section", "see", "seeing", "seem", "seemed", "seeming", "seems", "seen", "self", "selves", "sensible", "sent", "serious", "seriously", "seven", "several", "sf", "shall", "shan", "shan't", "she", "she'd", "she'll", "she's", "shed", "shes", "should", "should've", "shouldn", "shouldn't", "show", "showed", "shown", "showns", "shows", "si", "side", "significant", "significantly", "similar", "similarly", "since", "sincere", "six", "sixty", "sj", "sl", "slightly", "sm", "sn", "so", "some", "somebody", "somehow", "someone", "somethan", "something", "sometime", "sometimes", "somewhat", "somewhere", "soon", "sorry", "sp", "specifically", "specified", "specify", "specifying", "sq", "sr", "ss", "st", "still", "stop", "strongly", "sub", "substantially", "successfully", "such", "sufficiently", "suggest", "sup", "sure", "sy", "system", "sz", "t", "t's", "t1", "t2", "t3", "take", "taken", "taking", "tb", "tc", "td", "te", "tell", "ten", "tends", "tf", "th", "than", "thank", "thanks", "thanx", "that", "that'll", "that's", "that've", "thats", "the", "their", "theirs", "them", "themselves", "then", "thence", "there", "there'll", "there's", "there've", "thereafter", "thereby", "thered", "therefore", "therein", "thereof", "therere", "theres", "thereto", "thereupon", "these", "they", "they'd", "they'll", "they're", "they've", "theyd", "theyre", "thickv", "thin", "think", "third", "this", "thorough", "thoroughly", "those", "thou", "though", "thoughh", "thousand", "three", "throug", "through", "throughout", "thru", "thus", "ti", "til", "tip", "tj", "tl", "tm", "tn", "to", "together", "too", "took", "top", "toward", "towards", "tp", "tq", "tr", "tried", "tries", "truly", "try", "trying", "ts", "tt", "tv", "twelve", "twenty", "twice", "two", "tx", "u", "u201d", "ue", "ui", "uj", "uk", "um", "un", "under", "unfortunately", "unless", "unlike", "unlikely", "until", "unto", "uo", "up", "upon", "ups", "ur", "us", "use", "used", "useful", "usefully", "usefulness", "uses", "using", "usually", "ut", "v", "va", "value", "various", "vd", "ve", "very", "via", "viz", "vj", "vo", "vol", "vols", "volumtype", "vq", "vs", "vt", "vu", "w", "wa", "want", "wants", "was", "wasn", "wasn't", "wasnt", "way", "we", "we'd", "we'll", "we're", "we've", "wed", "welcome", "well", "well-b", "went", "were", "weren", "weren't", "werent", "what", "what'll", "what's", "whatever", "whats", "when", "when's", "whence", "whenever", "where", "where's", "whereafter", "whereas", "whereby", "wherein", "wheres", "whereupon", "wherever", "whether", "which", "while", "whim", "whither", "who", "who'll", "who's", "whod", "whoever", "whole", "whom", "whomever", "whos", "whose", "why", "why's", "wi", "widely", "will", "willing", "wish", "with", "within", "without", "wo", "won", "won't", "wonder", "wont", "words", "world", "would", "wouldn", "wouldn't", "wouldnt", "www", "x", "x1", "x2", "x3", "xf", "xi", "xj", "xk", "xl", "xn", "xo", "xs", "xt", "xv", "xx", "y", "y2", "yes", "yet", "yj", "yl", "you", "you'd", "you'll", "you're", "you've", "youd", "your", "youre", "yours", "yourself", "yourselves", "yr", "ys", "yt", "z", "zero", "zi", "zz"]
 
 
 class Scrutineer:
@@ -67,7 +67,7 @@ class Scrutineer:
         self._blogs = []
         self._previous = ""
 
-    def set_weights(self, title, body, emojis, images, tagging, tags):
+    def set_weights(self, title=1, body=1, emojis=1, images=1, tagging=1, tags=1):
         self._weights = [
             float(title),
             float(body),
@@ -106,16 +106,14 @@ class Scrutineer:
             if author == self._previous:
                 blogs = self._blogs
             else:
-                self.previous = author
+                self._previous = author
                 blogs = account.blogs(author, limit=2)
                 self._blogs = [b for b in blogs]
             for blog in blogs:
                 if blog["permlink"] == permlink:
                     continue
                 raw_blog_body = blog["body"].split("\n")
-                for line in raw_body:
-                    if line not in raw_blog_body:
-                        unique_lines.append(line)
+                unique_lines = [l for l in raw_body if l not in raw_blog_body]
                 break
             body = "\n".join(unique_lines)
         cleaned = _parse_body(body)
@@ -184,8 +182,6 @@ def _analyze_title(title, keywords, full=False):
     length = len(cleaned.encode("utf-8"))
 
     words = RE_CLEAN_TITLE.sub(" ", title.lower()).split(" ")
-    cleaned = " ".join([w for w in words if w in KNOWN_WORDS])
-    cleaned = cleaned.strip()
 
     bmin = length < 20
     amax = length > 80
@@ -195,7 +191,8 @@ def _analyze_title(title, keywords, full=False):
     readability = 0
     
     if length:
-        readability = len(cleaned) / length
+        english = _to_english(cleaned, chars=True)
+        readability = english / length
         if isinstance(keywords, dict):
             words = title.lower()
             for keyword in keywords.keys():
@@ -206,18 +203,14 @@ def _analyze_title(title, keywords, full=False):
 
     if not full:
         return score
-
-    analysis = {}
-    analysis["title"] = title
-    analysis["cleaned"] = cleaned
-    analysis["below_min"] = bmin
-    analysis["above_max"] = amax
-    analysis["keywords"] = keywords
-    analysis["readability"] = readability
-    analysis["keyword_score"] = skeywords
-    analysis["score"] = score
-    return analysis
-
+    return {"title": title,
+            "cleaned": cleaned,
+            "below_min": bmin,
+            "above_max": amax,
+            "keywords": keywords,
+            "readability": readability,
+            "keyword_score": skeywords,
+            "score": score }
 
 def _parse_body(body):
     # remove images, replace whitespaces
@@ -251,56 +244,52 @@ def _get_bigrams(contents, occurrence=4):
     occurrence = int(occurrence)
 
     bigrams = {}
-    words = list(RE_WORDS.findall(contents.lower()))
-    words = [x for x in words if x not in STOP_WORDS]
+    words = contents.lower().split(" ")
+    words = [w for w in words if w not in STOP_WORDS]
     for i in range(len(words) - 2):
         bigram = " ".join(words[i : i + 2])
         bigrams[bigram] = bigrams.get(bigram, 0) + 1
-
-    keywords = []
-    for b, o in bigrams.items():
-        if o >= occurrence:
-            keywords.append([b, o])
-    keywords = list(reversed(sorted(keywords)))
-    return {b: o for b, o in keywords}
+    return {b: o for b, o in bigrams.items() if o >= occurrence}
 
 
 def _analyze_body(words, deep, full=False):
-    corpus = words.split(" ")
-    cleaned = len([1 for x in corpus])
-    english = len([x for x in corpus if x in KNOWN_WORDS])
+    length = len(words.split(" "))
+    english = _to_english(words)
     w400 = english > 400
     w800 = english > 800
-    score = ((english / cleaned) + w400 + w800) / 3
+    score = ((english / length) + (w400*2) + w800) / 4
+
     if not full:
         return score
+    return { "cleaned": length,
+            "english": english,
+            "400+": w400,
+            "800+": w800,
+            "score": score }
 
-    analysis = {}
-    analysis["cleaned"] = cleaned
-    analysis["english"] = english
-    analysis["400+"] = w400
-    analysis["800+"] = w800
-    analysis["score"] = score
-    return analysis
-
+def _to_english(words, chars=False):
+    results = str(detect_langs(words))[1:-1].split(",")
+    for lang in results:
+        if "en:" in lang:
+            if chars:
+                return float(lang.strip()[3:]) * len(words)
+            return float(lang.strip()[3:]) * len(words.split(" "))
+    return 0
 
 def _analyze_emojis(body, limit, full=False):
-    chars = list(RE_NON_ASCII.findall(body))
-    emojis = [c for c in chars if c in EMOJIS]
+    emojis = emoji_list(body)
 
+    score = 1
     count = len(emojis)
-    score = int((count <= limit))
-    if count > limit:
-        score = limit / count
+    if limit and count > limit:
+        score = limit/count
+    
     if not full:
         return score
-
-    analysis = {}
-    analysis["limit"] = limit
-    analysis["emojis"] = emojis
-    analysis["count"] = count
-    analysis["score"] = score
-    return analysis
+    return { "limit": limit,
+        "emojis": [i.get("emoji") for i in emojis if "emoji" in i],
+        "count": count,
+        "score": score }
 
 
 def _analyze_images(body, wcount, full=True):
@@ -317,14 +306,12 @@ def _analyze_images(body, wcount, full=True):
         score = max(scores)
         if sequences:
             score = (score + (1 / sequences)) / 2
+
     if not full:
         return score
-
-    analysis = {}
-    analysis["count"] = count
-    analysis["sequences"] = sequences
-    analysis["score"] = score
-    return analysis
+    return {"count": count,
+            "sequences": sequences,
+            "score": score }
 
 
 def _analyze_overtagging(body, limit, full=False):
@@ -332,25 +319,21 @@ def _analyze_overtagging(body, limit, full=False):
     score = int((tags <= limit))
     if tags > limit:
         score = limit / tags
+
     if not full:
         return score
-
-    analysis = {}
-    analysis["limit"] = limit
-    analysis["count"] = tags
-    analysis["score"] = score
-    return analysis
+    return { "limit": limit,
+            "count": tags,
+            "score": score }
 
 
 def _analyze_tags(tags, limit, full=False):
     score = int((len(tags) <= limit))
     if limit and len(tags) > limit:
         score = limit / len(tags)
+
     if not full:
         return score
-
-    analysis = {}
-    analysis["limit"] = limit
-    analysis["count"] = len(tags)
-    analysis["score"] = score
-    return analysis
+    return { "limit": limit,
+            "count": len(tags),
+            "score": score }
