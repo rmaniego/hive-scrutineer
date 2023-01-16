@@ -4,7 +4,7 @@ build-backend = "pdm.pep517.api"
 
 [project]
 name = "hive-scrutineer"
-version = "1.3.1"
+version = "1.3.2"
 description = "Performance and quality analytics on Hive Posts."
 readme = "README.md"
 requires-python = ">=3.10"

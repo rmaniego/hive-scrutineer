@@ -1431,7 +1431,13 @@ def _analyze_body(words, deep, full=False):
 
 
 def _to_english(words, chars=False):
-    results = str(detect_langs(words))[1:-1].split(",")
+    if not len(words):
+        continue
+    try:
+        results = str(detect_langs(words))[1:-1].split(",")
+    except Exception as e:
+        print(f"Scrutineer: {e}")
+        return 0
     for lang in results:
         if "en:" in lang:
             if chars:
