@@ -1432,7 +1432,7 @@ def _analyze_body(words, deep, full=False):
 
 def _to_english(words, chars=False):
     if not len(words):
-        continue
+        return 0
     try:
         results = str(detect_langs(words))[1:-1].split(",")
     except Exception as e:
