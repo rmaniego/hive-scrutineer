@@ -1451,8 +1451,10 @@ def _analyze_emojis(body, limit, full=False):
 
     score = 1
     count = len(emojis)
-    if limit and count > limit:
-        score = limit / count
+    if count > limit:
+        score = 0
+        if limit:
+            score = limit / count
 
     if not full:
         return score
