@@ -1347,7 +1347,7 @@ def _analyze_title(title, keywords, full=False):
 
     if length:
         english = _to_english(cleaned, chars=True)
-        readability = english / length
+        readability = english / len(title)
         if isinstance(keywords, dict):
             words = title.lower()
             for keyword in keywords.keys():
