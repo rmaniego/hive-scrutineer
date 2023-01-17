@@ -21,7 +21,7 @@ RE_N_RANK = re.compile(r"\#[\d]+")
 RE_DOLLARS = re.compile(r"\$[\d\,\.]+")
 RE_POSSESSIVE = re.compile(r"\b[\w]+[']s\b")
 RE_MULTI_SPACE = re.compile(r"\s{2,}")
-RE_CLEAN_TITLE = re.compile(r"[^\w\'\,\ ]+")
+RE_CLEAN_TITLE = re.compile(r"[^\w\'\,\-\ ]+")
 RE_DELIMITERS = re.compile(r"[\n\.]")
 RE_IMAGE = re.compile(r"!\[[^\]]*\]\([^\)]+\)")
 RE_IMAGES = re.compile(r"!\[[^\]]*\]\([^\)]+\)[\s]{0,}!\[[^\]]*\]\([^\)]+\)")
@@ -1333,10 +1333,9 @@ def _analyze_title(title, keywords, full=False):
     cleaned = RE_N_RANK.sub(" ", cleaned)
     cleaned = RE_DOLLARS.sub(" ", cleaned)
     cleaned = RE_POSSESSIVE.sub("", cleaned)
+    cleaned = RE_CLEAN_TITLE.sub(" ", cleaned)
     cleaned = RE_MULTI_SPACE.sub(" ", cleaned).strip()
     length = len(cleaned.encode("utf-8"))
-
-    words = RE_CLEAN_TITLE.sub(" ", title.lower()).split(" ")
 
     bmin = length < 20
     amax = length > 80
