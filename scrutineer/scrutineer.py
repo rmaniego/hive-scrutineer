@@ -38,7 +38,7 @@ RE_LINKS_RIGHT = re.compile(r"\]\([^\)]+\)")
 RE_BLOCKQUOTES = re.compile(r">[\ ]?")
 RE_HR = re.compile(r"--[\-]+")
 RE_TRAILING_PARENTHESIS = re.compile(r"[\(\[\{\}\]\)]")
-RE_USER_TAGS = re.compile(r"@[a-z0-9\-\.]{3,16}[,\ ]")
+RE_USER_TAGS = re.compile(r"[\s]*@[a-z0-9\-\.]{3,16}[,\s]")
 RE_NON_ASCII = re.compile(r"[^ -~]")
 
 STOP_WORDS = [
