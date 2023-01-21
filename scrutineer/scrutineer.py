@@ -1298,9 +1298,10 @@ class Scrutineer:
             body, self._max_user_tags, self._full
         )
 
-        tags = []
-        if "tags" in post["json_metadata"]:
-            tags = post["json_metadata"]["tags"]
+        metadata = post["json_metadata"]
+        if isinstance(metadata, str):
+            metadata = json.loads(metadata)
+        tags = metadata.get("tags", [])
         self.analysis["tags"] = _analyze_tags(tags, self._max_tags, self._full)
 
         score = 0
