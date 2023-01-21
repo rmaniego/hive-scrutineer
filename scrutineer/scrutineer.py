@@ -21,6 +21,7 @@ RE_N_RANK = re.compile(r"\#[\d]+")
 RE_DOLLARS = re.compile(r"\$[\d\,\.]+")
 RE_POSSESSIVE = re.compile(r"\b[\w]+[']s\b")
 RE_MULTI_SPACE = re.compile(r"\s{2,}")
+RE_UPPERCASE = re.compile(r"[A-Z]")
 RE_CLEAN_TITLE = re.compile(r"[^\w\'\,\-\ ]+")
 RE_DELIMITERS = re.compile(r"[\n\.]")
 RE_IMAGE = re.compile(r"!\[[^\]]*\]\([^\)]+\)")
@@ -1345,8 +1346,10 @@ def _analyze_title(title, keywords, full=False):
     readability = 0
 
     if length:
+        uppercase = len(RE_UPPERCASE.findall(cleaned))/length
+        adjust = (1, 0.5)[int(bool(uppercase>0.5))]
         english = _to_english(cleaned, chars=True)
-        readability = english / len(title)
+        readability = (english / len(title)) * adjust
         if isinstance(keywords, dict):
             words = title.lower()
             for keyword in keywords.keys():
@@ -1364,6 +1367,7 @@ def _analyze_title(title, keywords, full=False):
         "cleaned": cleaned,
         "below_min": bmin,
         "above_max": amax,
+        "uppercase": uppercase,
         "keywords": keywords,
         "readability": readability,
         "keyword_score": skeywords,
