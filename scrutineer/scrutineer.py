@@ -11,6 +11,8 @@
 
 import re
 import json
+from operator import itemgetter
+
 from nektar import Waggle
 from emoji import emoji_list
 from langdetect import detect_langs
@@ -1376,6 +1378,28 @@ def _analyze_title(title, keywords, full=False):
         "score": score,
     }
 
+def get_keywords(body, occurrence=4):
+    occurrence = int(occurrence)
+    if not body:
+        return {}
+     
+    keywords = {}
+    cleaned = _parse_body(body)
+    words = cleaned.lower().split(" ")
+    words = [w for w in words if w not in STOP_WORDS]
+    for word in set(words):
+        count = words.count(word)
+        if count < occurrence:
+            continue
+        keywords[word] = count
+    return dict(sorted(keywords.items(), key=itemgetter(1), reverse=True))
+
+def get_bigrams(body, occurrence=4):
+    occurrence = int(occurrence)
+    if not body:
+        return {}
+    cleaned = _parse_body(body)
+    return _get_bigrams(cleaned, occurrence=4)
 
 def _parse_body(body):
     # remove images, replace whitespaces
@@ -1400,10 +1424,10 @@ def _parse_body(body):
     cleaned = RE_HR.sub("", cleaned)
     cleaned = RE_TRAILING_PARENTHESIS.sub("", cleaned)
     cleaned = RE_USER_TAGS.sub("", cleaned)
+    cleaned = RE_DASH.sub(" ", cleaned)
     cleaned = RE_MULTI_SPACE.sub(" ", cleaned)
 
     return cleaned
-
 
 def _get_bigrams(contents, occurrence=4):
     occurrence = int(occurrence)

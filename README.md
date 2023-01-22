@@ -39,6 +39,22 @@ for blog in hive.blogs(limit=5)
     print(json.dumps(analysis, indent=2))
 ```
 
+## Keywords
+
+```python
+import json
+from nektar import Waggle
+from scrutineer import get_keywords, get_bigrams
+
+hive = Waggle("username")
+for blog in hive.blogs(limit=5)
+    keywords = get_keywords(blog["body"])
+    print("\nget_keywords" + json.dumps(keywords))
+    
+    keywords = get_bigrams(blog["body"])
+    print("\nget_bigrams:" + json.dumps(keywords))
+```
+
 ## Performance
 In version `1.3.0`, we've migrated to `langdetect` to speed up `Scrutineer.analyze()` by more than 300x versus version `1.2.*`!
 ```cmd
