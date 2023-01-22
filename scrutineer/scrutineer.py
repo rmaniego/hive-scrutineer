@@ -10,6 +10,7 @@
 """
 
 import re
+import json
 from nektar import Waggle
 from emoji import emoji_list
 from langdetect import detect_langs
