@@ -11,7 +11,6 @@
 
 import re
 import json
-from operator import itemgetter
 
 from nektar import Waggle
 from emoji import emoji_list
@@ -1392,7 +1391,7 @@ def get_keywords(body, occurrence=4):
         if count < occurrence:
             continue
         keywords[word] = count
-    return dict(sorted(keywords.items(), key=itemgetter(1), reverse=True))
+    return keywords
 
 def get_bigrams(body, occurrence=4):
     occurrence = int(occurrence)
