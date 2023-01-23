@@ -1343,12 +1343,14 @@ def _analyze_title(title, keywords, full=False):
 
     bmin = length < 20
     amax = length > 80
+    
 
     score = 0
     skeywords = 0
     readability = 0
 
-    if length:
+    emojis = emoji_list(title)
+    if length and not len(emojis):
         uppercase = len(RE_UPPERCASE.findall(cleaned))/length
         adjust = (1, 0.5)[int(bool(uppercase>0.5))]
         english = _to_english(cleaned, chars=True)
@@ -1374,6 +1376,7 @@ def _analyze_title(title, keywords, full=False):
         "keywords": keywords,
         "readability": readability,
         "keyword_score": skeywords,
+        "emojis": emojis,
         "score": score,
     }
 
