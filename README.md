@@ -58,8 +58,8 @@ for blog in hive.blogs(limit=5)
 ## Performance
 In version `1.3.0`, we've migrated to `langdetect` to speed up `Scrutineer.analyze()` by more than 300x versus version `1.2.*`!
 ```cmd
-MIN: 1.8852958001662046 seconds
-AVG: 2.3002824100200088 seconds
-MAX: 4.7612034999765460 seconds
+MIN: 0.02782490011304617
+AVG: 0.13722777900053187
+MAX: 4.033556599984877
 ```
 We've also seen a 70% import speed increase, in the said profiling.
