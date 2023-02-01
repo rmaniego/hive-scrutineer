@@ -9,42 +9,41 @@
     :license: MIT License
 """
 
-import re
-import json
+from json import loads as jloads
+from re import compile as rcompile
 
 from nektar import Waggle
 from emoji import emoji_list
 from langdetect import detect_langs
 
-RE_DASH = re.compile(r"-")
-RE_EN_DASH = re.compile(r"\u2013")
-RE_EM_DASH = re.compile(r"\u2014")
-RE_N_RANK = re.compile(r"\#[\d]+")
-RE_DOLLARS = re.compile(r"\$[\d\,\.]+")
-RE_POSSESSIVE = re.compile(r"\b[\w]+[']s\b")
-RE_MULTI_SPACE = re.compile(r"\s{2,}")
-RE_UPPERCASE = re.compile(r"[A-Z]")
-RE_CLEAN_TITLE = re.compile(r"[^\w\'\,\-\ ]+")
-RE_DELIMITERS = re.compile(r"[\n\.]")
-RE_IMAGE = re.compile(r"!\[[^\]]*\]\([^\)]+\)")
-RE_IMAGES = re.compile(r"!\[[^\]]*\]\([^\)]+\)\s*!\[[^\]]*\]\([^\)]+\)")
-RE_HIVE_SVC = re.compile(r"\[\/\/\]:#[\ ]+\([!][\w\ \.]+\)")
-RE_ASTERISKS = re.compile(r"[\*]+")
-RE_TILDES = re.compile(r"[~]+")
-RE_UNDERSCORES = re.compile(r"[_]+")
-RE_HEADERS = re.compile(r"[#][#]+")
-RE_CODE_BLOCKS = re.compile(r"[`]+[\w]*[\ ]*")
-RE_TABLE_SEP = re.compile(r"\|[\-]+\|[\-]+\|")
-RE_PIPES = re.compile(r"[\ ]*\|[\ ]*")
-RE_HTML_TAGS = re.compile(r"<[\/]?[a-zA-Z]+[1-6]?[^\>]+>")
-RE_LINKS_RIGHT = re.compile(r"\]\([^\)]+\)")
-RE_BLOCKQUOTES = re.compile(r">[\ ]?")
-RE_HR = re.compile(r"--[\-]+")
-RE_TRAILING_PARENTHESIS = re.compile(r"[\(\[\{\}\]\)]")
-RE_USER_TAGS = re.compile(r"[^\w\/]@[\w\-\.]{3,16}[^\w\/]")
-RE_NUMBERS = re.compile(r"\d+\.?\d*")
-RE_PUNCTUATIONS = re.compile(r"[\.\,\!\?]")
-RE_NON_ASCII = re.compile(r"[^ -~]")
+RE_DASH = rcompile(r"(\-|\u2013|\u2014)")
+RE_N_RANK = rcompile(r"\#[\d]+")
+RE_DOLLARS = rcompile(r"\$[\d\,\.]+")
+RE_POSSESSIVE = rcompile(r"\b[\w]+[']s\b")
+RE_MULTI_SPACE = rcompile(r"\s{2,}")
+RE_UPPERCASE = rcompile(r"[A-Z]")
+RE_CLEAN_TITLE = rcompile(r"[^\w\'\,\-\ ]+")
+RE_DELIMITERS = rcompile(r"[\n\.]")
+RE_IMAGE = rcompile(r"!\[[^\]]*\]\([^\)]+\)")
+RE_IMAGES = rcompile(r"!\[[^\]]*\]\([^\)]+\)\s*!\[[^\]]*\]\([^\)]+\)")
+RE_HIVE_SVC = rcompile(r"\[\/\/\]:#[\ ]+\([!][\w\ \.]+\)")
+RE_ASTERISKS = rcompile(r"[\*]+")
+RE_TILDES = rcompile(r"[~]+")
+RE_UNDERSCORES = rcompile(r"[_]+")
+RE_HEADERS = rcompile(r"[#][#]+")
+RE_CODE_BLOCKS = rcompile(r"[`]+[\w]*[\ ]*")
+RE_TABLE_SEP = rcompile(r"\|[\-:]+\|[\-:]+\|")
+RE_PIPES = rcompile(r"[\ :]*\|[\ :]*")
+RE_HTML_TAGS = rcompile(r"<[\/]?[a-zA-Z]+[1-6]?[^\>]+>")
+RE_LINKS_RIGHT = rcompile(r"\]\([^\)]+\)")
+RE_BLOCKQUOTES = rcompile(r">[\ ]?")
+RE_HR = rcompile(r"--[\-]+")
+RE_TRAILING_PARENTHESIS = rcompile(r"[\(\[\{\}\]\)]")
+RE_USER_TAGS = rcompile(r"[^\w\/]@[\w\-\.]{3,16}[^\w\/]")
+RE_NUMBERS = rcompile(r"\d+\.?\d*")
+RE_PUNCTUATIONS = rcompile(r"[\.\,\!\?]")
+RE_NON_ASCII = rcompile(r"[^ -~]")
+RE_WORD = rcompile(r"\w[^\s]+")
 
 STOP_WORDS = [
     "0s",
@@ -358,18 +357,14 @@ STOP_WORDS = [
     "inward",
     "io",
     "is",
-    "isn",
     "isn't",
     "it",
     "it'd",
     "it'll",
     "it's",
-    "itd",
     "its",
     "itself",
     "just",
-    "k",
-    "ke",
     "keep",
     "keeps",
     "kept",
@@ -397,15 +392,10 @@ STOP_WORDS = [
     "likely",
     "line",
     "little",
-    "lj",
-    "ll",
-    "ln",
-    "lo",
     "look",
     "looking",
     "looks",
     "ltd",
-    "ma",
     "made",
     "mainly",
     "make",
@@ -552,7 +542,6 @@ STOP_WORDS = [
     "que",
     "quickly",
     "quite",
-    "qv",
     "ran",
     "rather",
     "re",
@@ -568,8 +557,6 @@ STOP_WORDS = [
     "regards",
     "related",
     "relatively",
-    "research",
-    "research-articl",
     "respectively",
     "resulted",
     "resulting",
@@ -602,8 +589,6 @@ STOP_WORDS = [
     "seven",
     "several",
     "shall",
-    "shan",
-    "shan't",
     "she",
     "she'd",
     "she'll",
@@ -702,7 +687,7 @@ STOP_WORDS = [
     "they've",
     "theyd",
     "theyre",
-    "thickv",
+    "thick",
     "thin",
     "think",
     "third",
@@ -720,7 +705,6 @@ STOP_WORDS = [
     "throughout",
     "thru",
     "thus",
-    "ti",
     "til",
     "tip",
     "to",
@@ -750,7 +734,6 @@ STOP_WORDS = [
     "up",
     "upon",
     "ups",
-    "ur",
     "us",
     "use",
     "used",
@@ -818,7 +801,6 @@ STOP_WORDS = [
     "whole",
     "whom",
     "whomever",
-    "whos",
     "whose",
     "why",
     "why's",
@@ -829,7 +811,6 @@ STOP_WORDS = [
     "with",
     "within",
     "without",
-    "won",
     "won't",
     "wonder",
     "wont",
@@ -838,11 +819,7 @@ STOP_WORDS = [
     "would",
     "wouldn",
     "wouldn't",
-    "wouldnt",
     "www",
-    "xl",
-    "xo",
-    "xx",
     "yes",
     "yet",
     "you",
@@ -850,16 +827,12 @@ STOP_WORDS = [
     "you'll",
     "you're",
     "you've",
-    "youd",
     "your",
-    "youre",
+    "you're",
     "yours",
     "yourself",
     "yourselves",
-    "yr",
-    "yt",
     "zero",
-    "zz",
 ]
 
 class Scrutineer:
@@ -884,6 +857,7 @@ class Scrutineer:
         self.analysis = {}
         self._blogs = []
         self._previous = ""
+        self._waggle = Waggle("")
 
     def set_weights(self, title=1, body=1, emojis=1, images=1, tagging=1, tags=1):
         self._weights = [
@@ -896,13 +870,14 @@ class Scrutineer:
         ]
 
     def analyze(self, post, permlink=None, auto_skip=False):
-        author = post
+        self.analysis = {}
+        
         if isinstance(post, dict):
             author = post["author"]
             permlink = post["permlink"]
-        account = Waggle(author)
         if not isinstance(post, dict):
-            post = account.get_post(author, permlink, retries=self._retries)
+            author = post
+            post = self._waggle.get_post(author, permlink, retries=self._retries)
             if not post:
                 return {}
 
@@ -915,7 +890,6 @@ class Scrutineer:
         title = post["title"]
         if not len(title):
             return {}
-        self.analysis["title"] = {}
 
         body = post["body"]
         if self._deep:
@@ -925,7 +899,7 @@ class Scrutineer:
                 blogs = self._blogs
             else:
                 self._previous = author
-                blogs = account.blogs(author, limit=2)
+                blogs = self._waggle.blogs(author, limit=1)
                 self._blogs = [b for b in blogs]
             for blog in blogs:
                 if blog["permlink"] == permlink:
@@ -963,7 +937,7 @@ class Scrutineer:
 
         metadata = post["json_metadata"]
         if isinstance(metadata, str):
-            metadata = json.loads(metadata)
+            metadata = jloads(metadata)
         tags = metadata.get("tags", [])
         self.analysis["tags"] = _analyze_tags(tags, self._max_tags, self._full)
 
@@ -993,8 +967,6 @@ def _analyze_title(title, keywords, full=False):
 
     cleaned = title
     cleaned = RE_DASH.sub(" ", cleaned)
-    cleaned = RE_EN_DASH.sub(" ", cleaned)
-    cleaned = RE_EM_DASH.sub(" ", cleaned)
     cleaned = RE_N_RANK.sub(" ", cleaned)
     cleaned = RE_DOLLARS.sub(" ", cleaned)
     cleaned = RE_POSSESSIVE.sub("", cleaned)
@@ -1004,7 +976,6 @@ def _analyze_title(title, keywords, full=False):
 
     bmin = length < 20
     amax = length > 80
-    
 
     score = 0
     skeywords = 0
@@ -1042,34 +1013,18 @@ def _analyze_title(title, keywords, full=False):
     }
 
 def get_keywords(body, occurrence=4):
-    occurrence = int(occurrence)
-    if not body:
-        return {}
-     
-    keywords = {}
-    cleaned = _parse_body(body)
-    words = cleaned.lower().split(" ")
+    words = RE_WORD.findall(_parse_body(body).lower())
     words = [w for w in words if w not in STOP_WORDS]
-    for word in set(words):
-        count = words.count(word)
-        if count < occurrence:
-            continue
-        keywords[word] = count
-    return keywords
+    keywords = {w:words.count(w) for w in set(words)}
+    return {k: c for k, c in keywords.items() if c >= int(occurrence)}
 
 def get_bigrams(body, occurrence=4):
-    occurrence = int(occurrence)
-    if not body:
-        return {}
-    cleaned = _parse_body(body)
-    return _get_bigrams(cleaned, occurrence=occurrence)
+    return _get_bigrams(_parse_body(body), occurrence=int(occurrence))
 
 def _parse_body(body):
     # remove images, replace whitespaces
     cleaned = RE_IMAGE.sub("", body).lower()
     cleaned = RE_DELIMITERS.sub(" ", cleaned)
-    cleaned = RE_EN_DASH.sub(" ", cleaned)
-    cleaned = RE_EM_DASH.sub(" ", cleaned)
 
     ## remove other formatting codes
     ## do not change order of patterns !!
@@ -1086,7 +1041,7 @@ def _parse_body(body):
     cleaned = RE_BLOCKQUOTES.sub("", cleaned)
     cleaned = RE_HR.sub("", cleaned)
     cleaned = RE_TRAILING_PARENTHESIS.sub("", cleaned)
-    cleaned = RE_USER_TAGS.sub("", cleaned)
+    cleaned = RE_USER_TAGS.sub(" ", cleaned)
     cleaned = RE_DASH.sub(" ", cleaned)
     cleaned = RE_PUNCTUATIONS.sub(" ", cleaned)
     cleaned = RE_NUMBERS.sub(" ", cleaned)
@@ -1095,15 +1050,13 @@ def _parse_body(body):
     return cleaned
 
 def _get_bigrams(contents, occurrence=4):
-    occurrence = int(occurrence)
-
     bigrams = {}
-    words = contents.lower().split(" ")
+    words = RE_WORD.findall(contents.lower())
     words = [w for w in words if w not in STOP_WORDS]
     for i in range(len(words) - 2):
         bigram = " ".join(words[i : i + 2])
         bigrams[bigram] = bigrams.get(bigram, 0) + 1
-    return {b: o for b, o in bigrams.items() if o >= occurrence}
+    return {b: o for b, o in bigrams.items() if o >= int(occurrence)}
 
 
 def _analyze_body(words, deep, full=False):
@@ -1124,26 +1077,25 @@ def _analyze_body(words, deep, full=False):
     }
 
 
-def _to_english(words, chars=False):
-    if not len(words):
+def _to_english(text, chars=False):
+    if not len(text):
         return 0
     try:
-        results = str(detect_langs(words))[1:-1].split(",")
+        results = str(detect_langs(text))[1:-1].split(",")
     except Exception as e:
         print(f"Scrutineer: {e}")
         return 0
     for lang in results:
-        if "en:" in lang:
-            if chars:
-                return float(lang.strip()[3:]) * len(words)
-            return float(lang.strip()[3:]) * len(words.split(" "))
+        if "en:" not in lang:
+            continue
+        if chars:
+            return float(lang.strip()[3:]) * len(text)
+        return float(lang.strip()[3:]) * len(text.split(" "))
     return 0
 
-
 def _analyze_emojis(body, limit, full=False):
-    emojis = emoji_list(body)
-
     score = 1
+    emojis = emoji_list(body)
     count = len(emojis)
     if count > limit:
         score = 0
@@ -1162,8 +1114,8 @@ def _analyze_emojis(body, limit, full=False):
 
 def _analyze_images(body, wcount, full=True):
     score = 0
-    count = len(list(RE_IMAGE.findall(body)))
-    sequences = len(list(RE_IMAGES.findall(body)))
+    count = len(RE_IMAGE.findall(body))
+    sequences = len(RE_IMAGES.findall(body))
     if count:
         scores = [0]
         for image in (1, 2, 3):
@@ -1182,9 +1134,10 @@ def _analyze_images(body, wcount, full=True):
 
 def _analyze_overtagging(body, limit, full=False):
     tags = len(RE_USER_TAGS.findall(body))
-    score = int((tags <= limit))
     if tags > limit:
         score = limit / tags
+    else:
+        score = int((tags <= limit))
 
     if not full:
         return score
@@ -1192,9 +1145,10 @@ def _analyze_overtagging(body, limit, full=False):
 
 
 def _analyze_tags(tags, limit, full=False):
-    score = int((len(tags) <= limit))
     if limit and len(tags) > limit:
         score = limit / len(tags)
+    else:
+        score = int((len(tags) <= limit))
 
     if not full:
         return score
