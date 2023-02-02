@@ -854,9 +854,10 @@ class Scrutineer:
         self._retries = int(retries)
         self._deep = isinstance(deep, bool) * bool(deep)
         self._full = isinstance(full, bool) * bool(full)
-        self.analysis = {}
-        self._blogs = []
-        self._previous = ""
+        self._permlink = None
+        self._previous = None
+        self._template = []
+        self._analysis = {}
         self._waggle = Waggle("")
 
     def set_weights(self, title=1, body=1, emojis=1, images=1, tagging=1, tags=1):
@@ -870,7 +871,7 @@ class Scrutineer:
         ]
 
     def analyze(self, post, permlink=None, auto_skip=False):
-        self.analysis = {}
+        self._analysis = {}
         
         if isinstance(post, dict):
             author = post["author"]
@@ -881,11 +882,11 @@ class Scrutineer:
             if not post:
                 return {}
 
-        self.analysis["author"] = author
-        self.analysis["permlink"] = permlink
+        self._analysis["author"] = author
+        self._analysis["permlink"] = permlink
 
         if self._full:
-            self.analysis["url"] = post["url"]
+            self._analysis["url"] = post["url"]
 
         title = post["title"]
         if not len(title):
@@ -893,45 +894,41 @@ class Scrutineer:
 
         body = post["body"]
         if self._deep:
-            unique_lines = []
             raw_body = body.split("\n")
-            if author == self._previous:
-                blogs = self._blogs
-            else:
+            if author != self._previous or (permlink == self._permlink and author == self._previous):
                 self._previous = author
-                blogs = self._waggle.blogs(author, limit=1)
-                self._blogs = [b for b in blogs]
-            for blog in blogs:
-                if blog["permlink"] == permlink:
-                    continue
-                raw_blog_body = blog["body"].split("\n")
-                unique_lines = [l for l in raw_body if l not in raw_blog_body]
-                break
-            body = "\n".join(unique_lines)
+                for blog in self._waggle.blogs(author, limit=2):
+                    if blog["permlink"] == self._permlink:
+                        continue
+                    self._permlink = blog["permlink"]
+                    self._template = blog["body"].split("\n")
+                    break
+            body = "\n".join([l for l in raw_body
+                if l not in self._template])
         cleaned = _parse_body(body)
         if not len(cleaned):
             return {}
 
         # use keywords instead
         keywords = get_keywords(cleaned) # _get_bigrams(cleaned)
-        self.analysis["title"] = _analyze_title(title, keywords, self._full)
+        self._analysis["title"] = _analyze_title(title, keywords, self._full)
 
-        self.analysis["body"] = {}
-        self.analysis["emojis"] = _analyze_emojis(body, self._max_emojis, self._full)
+        self._analysis["body"] = {}
+        self._analysis["emojis"] = _analyze_emojis(body, self._max_emojis, self._full)
         if auto_skip:
             if self._full:
                 if (
-                    self.analysis["emojis"]["score"] < 0.8
-                    or self.analysis["title"]["score"] < 0.8
+                    self._analysis["emojis"]["score"] < 0.8
+                    or self._analysis["title"]["score"] < 0.8
                 ):
                     return {}
-            elif self.analysis["emojis"] < 0.8 or self.analysis["title"] < 0.8:
+            elif self._analysis["emojis"] < 0.8 or self._analysis["title"] < 0.8:
                 return {}
-        self.analysis["body"] = _analyze_body(cleaned, self._deep, self._full)
+        self._analysis["body"] = _analyze_body(cleaned, self._deep, self._full)
 
         wcount = len(cleaned.split(" "))
-        self.analysis["images"] = _analyze_images(body, wcount, self._full)
-        self.analysis["tagging"] = _analyze_overtagging(
+        self._analysis["images"] = _analyze_images(body, wcount, self._full)
+        self._analysis["tagging"] = _analyze_overtagging(
             body, self._max_user_tags, self._full
         )
 
@@ -939,28 +936,28 @@ class Scrutineer:
         if isinstance(metadata, str):
             metadata = jloads(metadata)
         tags = metadata.get("tags", [])
-        self.analysis["tags"] = _analyze_tags(tags, self._max_tags, self._full)
+        self._analysis["tags"] = _analyze_tags(tags, self._max_tags, self._full)
 
         score = 0
         if not self._full:
-            score += self.analysis["title"] * self._weights[0]
-            score += self.analysis["body"] * self._weights[1]
-            score += self.analysis["emojis"] * self._weights[2]
-            score += self.analysis["images"] * self._weights[3]
-            score += self.analysis["tagging"] * self._weights[4]
-            score += self.analysis["tags"] * self._weights[5]
+            score += self._analysis["title"] * self._weights[0]
+            score += self._analysis["body"] * self._weights[1]
+            score += self._analysis["emojis"] * self._weights[2]
+            score += self._analysis["images"] * self._weights[3]
+            score += self._analysis["tagging"] * self._weights[4]
+            score += self._analysis["tags"] * self._weights[5]
         else:
-            score += self.analysis["title"]["score"] * self._weights[0]
-            score += self.analysis["body"]["score"] * self._weights[1]
-            score += self.analysis["emojis"]["score"] * self._weights[2]
-            score += self.analysis["images"]["score"] * self._weights[3]
-            score += self.analysis["tagging"]["score"] * self._weights[4]
-            score += self.analysis["tags"]["score"] * self._weights[5]
+            score += self._analysis["title"]["score"] * self._weights[0]
+            score += self._analysis["body"]["score"] * self._weights[1]
+            score += self._analysis["emojis"]["score"] * self._weights[2]
+            score += self._analysis["images"]["score"] * self._weights[3]
+            score += self._analysis["tagging"]["score"] * self._weights[4]
+            score += self._analysis["tags"]["score"] * self._weights[5]
         score /= sum(self._weights)
 
-        self.analysis["deep"] = self._deep
-        self.analysis["score"] = score
-        return self.analysis
+        self._analysis["deep"] = self._deep
+        self._analysis["score"] = score
+        return self._analysis
 
 
 def _analyze_title(title, keywords, full=False):
@@ -985,17 +982,17 @@ def _analyze_title(title, keywords, full=False):
     if length and not len(emojis):
         uppercase = len(RE_UPPERCASE.findall(cleaned))/length
         adjust = (1, 0.5)[int(bool(uppercase>0.5))]
-        english = _to_english(cleaned, chars=True)
+        
+        english = _count_english(cleaned, chars=True)
         readability = (english / len(title)) * adjust
+        
         if isinstance(keywords, dict):
             words = title.lower()
-            for keyword in keywords.keys():
+            for keyword in keywords:
                 if keyword in words:
-                    skeywords = 1
+                    skeywords = 0.5
                     break
-        score = int(not (bmin or amax)) * (
-            ((readability * 9.5) + (skeywords * 0.5)) / 10
-        )
+        score = int(not (bmin or amax)) * (((readability * 9.5) + skeywords) / 10)
 
     if not full:
         return score
@@ -1014,8 +1011,7 @@ def _analyze_title(title, keywords, full=False):
 
 def get_keywords(body, occurrence=4):
     words = RE_WORD.findall(_parse_body(body).lower())
-    words = [w for w in words if w not in STOP_WORDS]
-    keywords = {w:words.count(w) for w in set(words)}
+    keywords = {w:words.count(w) for w in set(words) if w not in STOP_WORDS}
     return {k: c for k, c in keywords.items() if c >= int(occurrence)}
 
 def get_bigrams(body, occurrence=4):
@@ -1061,7 +1057,7 @@ def _get_bigrams(contents, occurrence=4):
 
 def _analyze_body(words, deep, full=False):
     length = len(words.split(" "))
-    english = _to_english(words)
+    english = _count_english(words)
     w400 = english > 400
     w800 = english > 800
     score = (w400 + w800) * (english / length) / 2
@@ -1077,7 +1073,7 @@ def _analyze_body(words, deep, full=False):
     }
 
 
-def _to_english(text, chars=False):
+def _count_english(text, chars=False):
     if not len(text):
         return 0
     try:
@@ -1098,9 +1094,7 @@ def _analyze_emojis(body, limit, full=False):
     emojis = emoji_list(body)
     count = len(emojis)
     if count > limit:
-        score = 0
-        if limit:
-            score = limit / count
+        score = (limit / count) * int(bool(limit))
 
     if not full:
         return score
