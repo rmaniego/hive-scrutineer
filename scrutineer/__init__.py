@@ -7,7 +7,7 @@ Performance and quality analytics on Hive Posts.
 
 """
 
-__version__ = "1.3.16"
+__version__ = "1.3.18"
 from .scrutineer import Scrutineer
 from .scrutineer import get_keywords
 from .scrutineer import get_bigrams
